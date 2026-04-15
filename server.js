@@ -4,9 +4,9 @@ const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
 const jwt = require("jsonwebtoken");
-const connectDB = require("./config/db");
-const User = require("./models/user");
-const Todo = require("./models/todo");
+const connectDB = require("./todo-backend/config/db");
+const User = require("./todo-backend/models/user");
+const Todo = require("./todo-backend/models/todo");
 
 
 
