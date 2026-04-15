@@ -4,21 +4,19 @@ const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
 const jwt = require("jsonwebtoken");
-const express = require("express");
 const connectDB = require("./config/db");
 const User = require("./models/user");
 const Todo = require("./models/todo");
-const cors = require("cors");
-const jwt = require("jsonwebtoken");
 
-const SECRET_KEY = "mysecretkey"; // later move to .env
 
+
+const SECRET_KEY = process.env.JWT_SECRET;
 const app = express();
 
 
 connectDB();
 
-app.use(cors());
+app.use(cors({ origin: "*" }));
 
 app.use(express.json());
 
@@ -26,8 +24,10 @@ app.get("/", (req, res) => {
     res.send("Server is running");
 });
 
-app.listen(3000, () => {
-    console.log("Server running on port 3000");
+const PORT = process.env.PORT || 3000;
+
+app.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
 });
 
 app.post("/signup", async (req, res) => {
@@ -159,7 +159,7 @@ app.delete("/todos/:id", authMiddleware, async (req, res) => {
     }
 });
 
-app.put("/todos/:id", async (req, res) => {
+app.put("/todos/:id", authMiddleware, async (req, res) => {
   try {
     const { title, completed } = req.body;
 
