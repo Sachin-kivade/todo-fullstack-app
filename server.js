@@ -122,8 +122,7 @@ app.get("/todos", authMiddleware, async (req, res) => {
     try {
         const userId = req.user.userId;
 
-        const todos = await Todo.find({ userId });
-
+        const todos = await Todo.find({ userId }).select("-userId");
         res.json({ todos });
 
     } catch (error) {
