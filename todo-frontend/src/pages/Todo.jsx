@@ -1,4 +1,6 @@
 import { useState, useEffect } from "react";
+import { API_BASE } from "../api";
+import { getAuthHeaders } from "../utils/auth";
 
 function Todo() {
   const [title, setTitle] = useState("");
@@ -7,67 +9,56 @@ function Todo() {
   const [editId, setEditId] = useState(null);
   const [editText, setEditText] = useState("");
 
-  const token = localStorage.getItem("token");
 
   // ✅ Fetch Todos
   const fetchTodos = async () => {
-    try {
-      const res = await fetch("http://localhost:3000/todos", {
-        headers: {
-          Authorization: `Bearer ${token}`
-        }
-      });
+  try {
+    const res = await fetch(`${API_BASE}/todos`, {
+      headers: getAuthHeaders(),
+    });
 
-      const data = await res.json();
-      setTodos(data.todos);
-
-    } catch (error) {
-      console.log(error);
-    }
-  };
+    const data = await res.json();
+    setTodos(data.todos);
+  } catch (error) {
+    console.log(error);
+  }
+};
 
   // ✅ Add Todo
   const addTodo = async () => {
-    if (!title) return;
+  if (!title) return;
 
-    await fetch("http://localhost:3000/todos", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`
-      },
-      body: JSON.stringify({ title })
-    });
+  await fetch(`${API_BASE}/todos`, {  // ✅ NO id
+    method: "POST",
+    headers: getAuthHeaders(),
+    body: JSON.stringify({ title }),
+  });
 
-    setTitle("");
-    fetchTodos();
-  };
+  setTitle("");
+  fetchTodos();
+};
 
   // ✅ Delete
   const deleteTodo = async (id) => {
-    await fetch(`http://localhost:3000/todos/${id}`, {
-      method: "DELETE",
-      headers: {
-        Authorization: `Bearer ${token}`
-      }
-    });
+  await fetch(`${API_BASE}/todos/${id}`, {
+    method: "DELETE",
+    headers: getAuthHeaders(),
+  });
 
-    fetchTodos();
-  };
+  fetchTodos();
+};
+
 
   // ✅ Toggle Complete
   const toggleComplete = async (id, status) => {
-    await fetch(`http://localhost:3000/todos/${id}`, {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`
-      },
-      body: JSON.stringify({ completed: !status })
-    });
+  await fetch(`${API_BASE}/todos/${id}`, {
+    method: "PUT",
+    headers: getAuthHeaders(),   // ✅ use this
+    body: JSON.stringify({ completed: !status })
+  });
 
-    fetchTodos();
-  };
+  fetchTodos();
+};
 
   // ✅ Start Editing
   const startEdit = (todo) => {
@@ -77,19 +68,16 @@ function Todo() {
 
   // ✅ Save Edit
   const saveEdit = async (id) => {
-    await fetch(`http://localhost:3000/todos/${id}`, {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`
-      },
-      body: JSON.stringify({ title: editText })
-    });
+  await fetch(`${API_BASE}/todos/${id}`, {
+    method: "PUT",
+    headers: getAuthHeaders(),   // ✅ use this
+    body: JSON.stringify({ title: editText })
+  });
 
-    setEditId(null);
-    setEditText("");
-    fetchTodos();
-  };
+  setEditId(null);
+  setEditText("");
+  fetchTodos();
+};
 
   // ✅ Logout
   const logout = () => {
@@ -100,6 +88,8 @@ function Todo() {
   useEffect(() => {
     fetchTodos();
   }, []);
+
+  
 
   return (
     <div className="min-h-screen bg-purple-100 flex items-center justify-center">

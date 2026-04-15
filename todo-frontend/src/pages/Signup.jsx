@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { API_BASE } from "../api";
+
 
 function Signup() {
   const [username, setUsername] = useState("");
@@ -10,7 +12,7 @@ function Signup() {
 
   const handleSignup = async () => {
     try {
-      const res = await fetch("http://localhost:3000/signup", {
+      const res = await fetch(`${API_BASE}/login`, {
       method: "POST",
       headers: {
       "Content-Type": "application/json"
