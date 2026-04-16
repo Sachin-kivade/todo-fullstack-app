@@ -79,7 +79,7 @@ app.post("/login", async (req, res) => {
             return res.status(400).json({ message: "Invalid password" });
         }
 
-        // 🔥 CREATE TOKEN
+        //  CREATE TOKEN
         const token = jwt.sign(
             { userId: user._id },
             SECRET_KEY,
@@ -131,22 +131,28 @@ app.get("/todos", authMiddleware, async (req, res) => {
 });
 
 app.post("/todos", authMiddleware, async (req, res) => {
-    try {
-        const { title } = req.body;
-        const userId = req.user.userId;
+  try {
+    console.log("BODY RECEIVED:", req.body);
 
-        const newTodo = new Todo({
-            title,
-            userId
-        });
+    const { title, date, priority } = req.body;
+    const userId = req.user.userId;
 
-        await newTodo.save();
+    const newTodo = new Todo({
+      title,
+      userId,
+      date: date || null,       
+      priority: priority || "low"    
+    });
 
-        res.json({ message: "Todo added", todo: newTodo });
+    await newTodo.save();
 
-    } catch (error) {
-        res.status(500).json({ message: "Error adding todo" });
-    }
+    res.json({ message: "Todo added", todo: newTodo });
+    console.log("SAVING TO DB:", newTodo);
+
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ message: "Error adding todo" });
+  }
 });
 
 app.delete("/todos/:id", authMiddleware, async (req, res) => {
@@ -160,13 +166,15 @@ app.delete("/todos/:id", authMiddleware, async (req, res) => {
 
 app.put("/todos/:id", authMiddleware, async (req, res) => {
   try {
-    const { title, completed } = req.body;
+    const { title, completed, date, priority } = req.body;
 
     const updatedTodo = await Todo.findByIdAndUpdate(
       req.params.id,
       {
         ...(title !== undefined && { title }),
-        ...(completed !== undefined && { completed })
+        ...(completed !== undefined && { completed }),
+        ...(date !== undefined && { date }),
+        ...(priority !== undefined && { priority })
       },
       { new: true }
     );
@@ -177,3 +185,5 @@ app.put("/todos/:id", authMiddleware, async (req, res) => {
     res.status(500).json({ message: "Error updating todo" });
   }
 });
+
+
