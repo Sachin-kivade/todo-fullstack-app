@@ -132,7 +132,6 @@ app.get("/todos", authMiddleware, async (req, res) => {
 
 app.post("/todos", authMiddleware, async (req, res) => {
   try {
-    console.log("BODY RECEIVED:", req.body);
 
     const { title, date, priority } = req.body;
     const userId = req.user.userId;
