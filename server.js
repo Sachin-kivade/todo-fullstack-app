@@ -7,6 +7,7 @@ const jwt = require("jsonwebtoken");
 const connectDB = require("./config/db");
 const User = require("./models/user");
 const Todo = require("./models/todo");
+const bcrypt = require("bcrypt");
 
 
 
@@ -31,70 +32,71 @@ app.listen(PORT, () => {
 });
 
 app.post("/signup", async (req, res) => {
-    try {
-        const { username, email, password } = req.body;
+  try {
+    const { username, email, password } = req.body;
 
-        if (!username || !email || !password) {
-        return res.status(400).json({ message: "All fields required" });
-        }
-        // check existing email
-        const existingEmail = await User.findOne({ email });
-        if (existingEmail) {
-            return res.status(400).json({ message: "Email already exists" });
-        }
-
-        // check username
-        const existingUser = await User.findOne({ username });
-        if (existingUser) {
-            return res.status(400).json({ message: "Username already exists" });
-        }
-
-        const newUser = new User({
-            username,
-            email,
-            password
-        });
-
-        await newUser.save();
-
-        res.json({ message: "Signup successful" });
-
-    } catch (error) {
-        console.log("SIGNUP ERROR:", error);
-        res.status(500).json({ message: "Server error" });
+    if (!username || !email || !password) {
+      return res.status(400).json({ message: "All fields required" });
     }
+
+    // Check existing user
+    const existingUser = await User.findOne({ username });
+    if (existingUser) {
+      return res.status(400).json({ message: "User already exists" });
+    }
+
+    // 🔥 HASH PASSWORD
+    const saltRounds = 10;
+    const hashedPassword = await bcrypt.hash(password, saltRounds);
+
+    const newUser = new User({
+      username,
+      email,
+      password: hashedPassword   // ✅ store hashed password
+    });
+
+    await newUser.save();
+
+    res.json({ message: "Signup successful" });
+
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ message: "Server error" });
+  }
 });
 
 app.post("/login", async (req, res) => {
-    try {
-        const { username, password } = req.body;
+  try {
+    const { username, password } = req.body;
 
-        const user = await User.findOne({ username });
+    const user = await User.findOne({ username });
 
-        if (!user) {
-            return res.status(404).json({ message: "User not found" });
-        }
-
-        if (user.password !== password) {
-            return res.status(400).json({ message: "Invalid password" });
-        }
-
-        //  CREATE TOKEN
-        const token = jwt.sign(
-            { userId: user._id },
-            SECRET_KEY,
-            { expiresIn: "1h" }
-        );
-
-        res.json({
-            message: "Login successful",
-            token: token
-        });
-
-    } catch (error) {
-        console.log("LOGIN ERROR:", error);
-        res.status(500).json({ message: "Server error" });
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
     }
+
+    // 🔥 COMPARE HASHED PASSWORD
+    const isMatch = await bcrypt.compare(password, user.password);
+
+    if (!isMatch) {
+      return res.status(400).json({ message: "Invalid password" });
+    }
+
+    const token = jwt.sign(
+      { userId: user._id },
+      process.env.JWT_SECRET,
+      { expiresIn: "1h" }
+    );
+
+    res.json({
+      message: "Login successful",
+      token
+    });
+
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ message: "Server error" });
+  }
 });
 
 const authMiddleware = (req, res, next) => {
