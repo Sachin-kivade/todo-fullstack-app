@@ -8,6 +8,7 @@ const connectDB = require("./config/db");
 const User = require("./models/user");
 const Todo = require("./models/todo");
 const bcrypt = require("bcrypt");
+const nodemailer = require("nodemailer");
 
 
 
@@ -33,26 +34,29 @@ app.listen(PORT, () => {
 
 app.post("/signup", async (req, res) => {
   try {
-    const { username, email, password } = req.body;
+    let { username, email, password } = req.body;
+
+    
+    email = email.toLowerCase().trim();
 
     if (!username || !email || !password) {
       return res.status(400).json({ message: "All fields required" });
     }
 
-    // Check existing user
-    const existingUser = await User.findOne({ username });
+    
+    const existingUser = await User.findOne({ email });
+
     if (existingUser) {
-      return res.status(400).json({ message: "User already exists" });
+      return res.status(400).json({ message: "Email already registered" });
     }
 
-    // 🔥 HASH PASSWORD
-    const saltRounds = 10;
-    const hashedPassword = await bcrypt.hash(password, saltRounds);
+    
+    const hashedPassword = await bcrypt.hash(password, 10);
 
     const newUser = new User({
       username,
       email,
-      password: hashedPassword   // ✅ store hashed password
+      password: hashedPassword
     });
 
     await newUser.save();
@@ -75,7 +79,7 @@ app.post("/login", async (req, res) => {
       return res.status(404).json({ message: "User not found" });
     }
 
-    // 🔥 COMPARE HASHED PASSWORD
+    
     const isMatch = await bcrypt.compare(password, user.password);
 
     if (!isMatch) {
@@ -111,7 +115,7 @@ const authMiddleware = (req, res, next) => {
 
         const decoded = jwt.verify(token, SECRET_KEY);
 
-        req.user = decoded; // contains userId
+        req.user = decoded; 
 
         next();
 
@@ -187,4 +191,71 @@ app.put("/todos/:id", authMiddleware, async (req, res) => {
   }
 });
 
+app.post("/forgot-password", async (req, res) => {
+  try {
+    const { email } = req.body;
+ 
+    const user = await User.findOne({
+      email: email.trim().toLowerCase()
+    });
 
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    const otp = Math.floor(1000 + Math.random() * 9000).toString();
+
+    user.resetOTP = otp;
+    user.otpExpiry = Date.now() + 5 * 60 * 1000;
+
+    await user.save();
+
+   
+    const transporter = nodemailer.createTransport({
+      service: "gmail",
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS,
+        }
+    });
+
+    await transporter.sendMail({
+      to: email,
+      subject: "Password Reset OTP",
+      text: `Your OTP is ${otp}`,
+    });
+
+    res.json({ message: "OTP sent to email" });
+
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+app.post("/reset-password", async (req, res) => {
+  const { email, otp, newPassword } = req.body;
+
+  const user = await User.findOne({ email });
+
+  const isMatch = await bcrypt.compare(otp, user.resetOTP);
+
+  if (!isMatch) {
+  return res.status(400).json({ message: "Invalid OTP" });
+  }
+
+  if (user.otpExpiry < Date.now()) {
+    return res.status(400).json({ message: "OTP expired" });
+  }
+
+  
+  const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+  user.password = hashedPassword;
+  user.resetOTP = null;
+  user.otpExpiry = null;
+
+  await user.save();
+
+  res.json({ message: "Password updated successfully" });
+});
