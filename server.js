@@ -36,7 +36,7 @@ app.post("/signup", async (req, res) => {
   try {
     let { username, email, password } = req.body;
 
-    
+   
     email = email.toLowerCase().trim();
 
     if (!username || !email || !password) {
@@ -50,7 +50,7 @@ app.post("/signup", async (req, res) => {
       return res.status(400).json({ message: "Email already registered" });
     }
 
-    
+   
     const hashedPassword = await bcrypt.hash(password, 10);
 
     const newUser = new User({
@@ -194,15 +194,19 @@ app.put("/todos/:id", authMiddleware, async (req, res) => {
 app.post("/forgot-password", async (req, res) => {
   try {
     const { email } = req.body;
- 
+
+
+   
     const user = await User.findOne({
       email: email.trim().toLowerCase()
     });
+
 
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
 
+   
     const otp = Math.floor(1000 + Math.random() * 9000).toString();
 
     user.resetOTP = otp;
@@ -238,10 +242,8 @@ app.post("/reset-password", async (req, res) => {
 
   const user = await User.findOne({ email });
 
-  const isMatch = await bcrypt.compare(otp, user.resetOTP);
-
-  if (!isMatch) {
-  return res.status(400).json({ message: "Invalid OTP" });
+  if (!user || user.resetOTP !== otp) {
+    return res.status(400).json({ message: "Invalid OTP" });
   }
 
   if (user.otpExpiry < Date.now()) {
