@@ -191,73 +191,80 @@ app.put("/todos/:id", authMiddleware, async (req, res) => {
   }
 });
 
+
 app.post("/forgot-password", async (req, res) => {
   try {
     const { email } = req.body;
 
-
-   
     const user = await User.findOne({
-      email: email.trim().toLowerCase()
+      email: email.trim().toLowerCase(),
     });
-
 
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
 
-   
+    
     const otp = Math.floor(1000 + Math.random() * 9000).toString();
 
-    user.resetOTP = otp;
+    
+    const hashedOTP = await bcrypt.hash(otp, 10);
+
+    user.resetOTP = hashedOTP;
     user.otpExpiry = Date.now() + 5 * 60 * 1000;
 
     await user.save();
 
-   
-    const transporter = nodemailer.createTransport({
-      service: "gmail",
-      auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS,
-        }
-    });
-
-    await transporter.sendMail({
-      to: email,
-      subject: "Password Reset OTP",
-      text: `Your OTP is ${otp}`,
-    });
+    console.log("OTP (for testing):", otp); 
+    
 
     res.json({ message: "OTP sent to email" });
 
-  } catch (error) {
-    console.log(error);
+  } catch (err) {
+    console.log(err);
     res.status(500).json({ message: "Server error" });
   }
 });
 
 app.post("/reset-password", async (req, res) => {
-  const { email, otp, newPassword } = req.body;
+  try {
+    const { email, otp, newPassword } = req.body;
 
-  const user = await User.findOne({ email });
+    const user = await User.findOne({
+      email: email.trim().toLowerCase(),
+    });
 
-  if (!user || user.resetOTP !== otp) {
-    return res.status(400).json({ message: "Invalid OTP" });
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // ⏱ Check expiry
+    if (user.otpExpiry < Date.now()) {
+      return res.status(400).json({ message: "OTP expired" });
+    }
+
+    // 🔐 Compare OTP (IMPORTANT)
+    const isMatch = await bcrypt.compare(otp, user.resetOTP);
+
+    if (!isMatch) {
+      return res.status(400).json({ message: "Invalid OTP" });
+    }
+
+    // 🔐 Hash new password
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+    user.password = hashedPassword;
+
+    // 🧹 Clear OTP
+    user.resetOTP = null;
+    user.otpExpiry = null;
+
+    await user.save();
+
+    res.json({ message: "Password reset successful" });
+
+  } catch (err) {
+    console.log(err);
+    res.status(500).json({ message: "Server error" });
   }
-
-  if (user.otpExpiry < Date.now()) {
-    return res.status(400).json({ message: "OTP expired" });
-  }
-
-  
-  const hashedPassword = await bcrypt.hash(newPassword, 10);
-
-  user.password = hashedPassword;
-  user.resetOTP = null;
-  user.otpExpiry = null;
-
-  await user.save();
-
-  res.json({ message: "Password updated successfully" });
 });
